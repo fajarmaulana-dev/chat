@@ -9,7 +9,5 @@ if (router.currentRoute.value.path === '/') {
 </script>
 
 <template>
-  <div class="bg-slate-100 min-h-screen sm:px-mobile md:px-desktop 2xl:px-0 sm:pt-4 md:pt-6">
-    <router-view class="max-w-screen-xl mx-auto"></router-view>
-  </div>
+  <router-view></router-view>
 </template>
