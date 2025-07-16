@@ -6,11 +6,12 @@ import { useChat } from '@/hooks';
 import { PRODUCTS } from '@/constants/chatroom';
 
 const {
-    cleanRooms,
+    filteredRooms,
     currentChat,
     message,
     chats,
     chatrooms,
+    searchrooms,
     id,
     getImage,
     clickById,
@@ -19,6 +20,7 @@ const {
     uploadProduct,
     onSelectEmoji,
     getLastChat,
+    handleFilterRooms
 } = useChat()
 </script>
 
@@ -41,8 +43,8 @@ const {
                         </span>
                     </div>
                 </router-link>
-                <Input with-prefix type="text" wrapper-class="min-h-10" placeholder="Cari pesan ..."
-                    @prefix="input => input.focus()">
+                <Input ref="searchrooms" with-prefix type="text" wrapper-class="min-h-10" placeholder="Cari pesan ..."
+                    @prefix="input => input.focus()" @input="handleFilterRooms">
                 <template #prefix>
                     <Search width="20" height="20" class="text-slate-400" />
                 </template>
@@ -55,7 +57,7 @@ const {
                 </div>
                 <div ref="chatrooms"
                     class="flex flex-col gap-1 mt-2 overflow-y-auto max-h-[calc(100vh-170px)] sm:max-h-[calc(100vh-200px)] md:max-h-[calc(100vh-218px)] -mx-5 px-2 pb-2">
-                    <router-link v-for="room in cleanRooms" :key="room.room_id" :to="`/chat?id=${room.room_id}`"
+                    <router-link v-for="room in filteredRooms" :key="room.room_id" :to="`/chat?id=${room.room_id}`"
                         :replace="!!id" :id="room.room_id" aria-label="chatroom"
                         :class="id! === room.room_id ? 'bg-slate-200' : 'hover:bg-slate-100 active:bg-slate-200'"
                         class="flex gap-2 items-center py-2.5 px-3 rounded-xl transition-colors duration-300">
@@ -192,7 +194,7 @@ const {
                         <input type="checkbox" name="products" id="products" class="hidden">
                     </label>
                     <div
-                        class="fixed inset-y-0 right-0 w-full max-w-screen-xs translate-x-full peer-has-[:checked]/products:translate-x-0 transition-transform duration-300 bg-white rounded-l-2xl p-5">
+                        class="fixed inset-y-0 right-0 w-full max-w-screen-xs translate-x-full peer-has-[:checked]/products:translate-x-0 transition-transform duration-300 bg-white xs:rounded-l-2xl p-5">
                         <b class="font-semibold text-slate-800 text-lg mb-3 block">Etalase</b>
                         <div
                             class="overflow-y-auto grid [grid-template-columns:repeat(auto-fill,_minmax(160px,_1fr))] gap-3">

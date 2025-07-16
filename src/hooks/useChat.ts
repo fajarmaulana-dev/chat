@@ -7,6 +7,7 @@ import { clickById, moveItem } from '@/utils/general'
 import rooms from '@/json/list_rooms.json'
 import type { TChat, TEmoji, TProduct, TResponseChatRoom } from '@/types'
 import Input from '@/components/common/Input.vue'
+import { debounce } from '@/utils/debounce'
 
 const room_key = 'list_rooms'
 const chat_key = 'list_chats'
@@ -36,6 +37,7 @@ export default function useChat() {
 
   const state = reactive({
     cleanRooms: [] as TResponseChatRoom[],
+    filteredRooms: [] as TResponseChatRoom[],
     allChatRooms: [] as TChat[],
     currentChat: null as TChat | null,
   })
@@ -43,6 +45,7 @@ export default function useChat() {
   const message = ref<InstanceType<typeof Input> | null>(null)
   const chats = ref<HTMLDivElement | null>(null)
   const chatrooms = ref<HTMLDivElement | null>(null)
+  const searchrooms = ref<InstanceType<typeof Input> | null>(null)
   const imageData = ref<string | null>(null)
 
   const loadChatsFromStorage = () => {
@@ -103,6 +106,7 @@ export default function useChat() {
     const stored = localStorage.getItem(room_key)
     if (stored) {
       state.cleanRooms = JSON.parse(stored)
+      state.filteredRooms = JSON.parse(stored)
       await initChat(true)
       return
     }
@@ -113,6 +117,7 @@ export default function useChat() {
       loaded.push({ ...r, image })
     }
     state.cleanRooms = loaded
+    state.filteredRooms = loaded
     localStorage.setItem(room_key, JSON.stringify(state.cleanRooms))
     await initChat(true)
   }
@@ -176,6 +181,22 @@ export default function useChat() {
     updateChat('[file] ' + image + ' [/file]', product, () => clickById('products'))
   }
 
+  const filterRooms = () => {
+    const search = searchrooms.value?.getElement()
+    if (!search) return
+    const keyword = search.value.trim().toLowerCase()
+    if (!keyword) {
+      state.filteredRooms = [...state.cleanRooms]
+      return
+    }
+
+    state.filteredRooms = state.cleanRooms.filter((room) =>
+      room.name.toLowerCase().includes(keyword),
+    )
+  }
+
+  const handleFilterRooms = debounce(filterRooms, 500)
+
   watch(id, () => initChat())
   watch(
     () => state.currentChat,
@@ -193,6 +214,7 @@ export default function useChat() {
     message,
     chats,
     chatrooms,
+    searchrooms,
     id,
     getImage,
     clickById,
@@ -201,5 +223,6 @@ export default function useChat() {
     uploadProduct,
     onSelectEmoji,
     getLastChat,
+    handleFilterRooms,
   }
 }
