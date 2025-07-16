@@ -3,6 +3,7 @@ import { ArrowLeft, ChatLines, DoubleCheck, Emoji, MediaImage, MenuScale, Plus, 
 import Input from '@/components/common/Input.vue';
 import EmojiPicker from 'vue3-emoji-picker'
 import { useChat } from '@/hooks';
+import { PRODUCTS } from '@/constants/chatroom';
 
 const {
     cleanRooms,
@@ -15,6 +16,7 @@ const {
     clickById,
     sendMessage,
     uploadImage,
+    uploadProduct,
     onSelectEmoji,
     getLastChat,
 } = useChat()
@@ -131,6 +133,11 @@ const {
                             <p v-else class="text-slate-800">
                                 {{ chat.chat }}
                             </p>
+                            <div v-if="chat.product" class="flex flex-col gap-0.5 w-full overflow-hidden mt-2.5">
+                                <strong class="text-slate-800 font-semibold block truncate">
+                                    {{ chat.product.name }}</strong>
+                                <span class=" text-xs font-medium text-slate-600">{{ chat.product.price }}</span>
+                            </div>
                             <span class="text-slate-500 font-semibold text-xs block text-right mt-1">
                                 {{ chat.time }}
                             </span>
@@ -153,13 +160,17 @@ const {
                             class="text-slate-400 group-hover:text-sky-600 group-active:text-sky-700 transition-colors duration-300" />
                     </template>
                     </Input>
-                    <div
-                        class="peer cursor-pointer border-2 border-neutral-300 hover:border-sky-600 transition-colors duration-300 grid place-items-center min-w-12 max-w-12 h-12 rounded-full group">
+                    <button aria-label="upload" @click="() => clickById('upload')"
+                        class="cursor-pointer border-2 border-neutral-300 hover:border-sky-600 transition-colors duration-300 grid place-items-center min-w-12 max-w-12 h-12 rounded-full group">
                         <Plus width="28" height="28"
                             class="text-neutral-300 group-hover:text-sky-600 group-active:text-sky-700 transition-colors duration-300" />
-                    </div>
+                    </button>
+                    <label for="upload" aria-label="upload"
+                        class="fixed inset-0 peer select-none pointer-events-none has-[:checked]:pointer-events-auto">
+                        <input type="checkbox" name="upload" id="upload" class="hidden">
+                    </label>
                     <div
-                        class="flex flex-col gap-2 absolute bottom-16 right-[76px] [&>*]:scale-0 peer-hover:[&>*]:scale-100 [&>*]:hover:scale-100 pb-3">
+                        class="flex flex-col gap-2 absolute bottom-16 right-[76px] [&>*]:scale-0 peer-has-[:checked]:[&>*]:scale-100 pb-3">
                         <label aria-label="choose-image" for="choose-image"
                             class="cursor-pointer w-12 h-12 rounded-full grid place-items-center bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 transition duration-300">
                             <input type="file" id="choose-image" name="choose-image" accept="image/*" class="hidden"
@@ -167,6 +178,7 @@ const {
                             <MediaImage width="24" height="24" class="text-white" />
                         </label>
                         <button aria-label="choose-product"
+                            @click="() => { clickById('upload'); clickById('products') }"
                             class="w-12 h-12 rounded-full grid place-items-center bg-violet-500 hover:bg-violet-600 active:bg-violet-700 transition duration-300">
                             <Shop width="24" height="24" class="text-white" />
                         </button>
@@ -175,6 +187,25 @@ const {
                         class="bg-sky-600 hover:bg-sky-700 active:bg-sky-800 transition-colors duration-300 grid place-items-center min-w-12 max-w-12 h-12 rounded-full">
                         <Send width="24" height="24" class="text-white" />
                     </button>
+                    <label for="products"
+                        class="peer/products fixed inset-0 select-none pointer-events-none has-[:checked]:pointer-events-auto bg-transparent has-[:checked]:bg-slate-900/40 transition-colors duration-300">
+                        <input type="checkbox" name="products" id="products" class="hidden">
+                    </label>
+                    <div
+                        class="fixed inset-y-0 right-0 w-full max-w-screen-xs translate-x-full peer-has-[:checked]/products:translate-x-0 transition-transform duration-300 bg-white rounded-l-2xl p-5">
+                        <b class="font-semibold text-slate-800 text-lg mb-3 block">Etalase</b>
+                        <div
+                            class="overflow-y-auto grid [grid-template-columns:repeat(auto-fill,_minmax(160px,_1fr))] gap-3">
+                            <button v-for="product, idx in PRODUCTS" :key="idx" aria-label="product"
+                                @click="() => uploadProduct(product)"
+                                class="flex flex-col gap-1 p-2.5 rounded-lg hover:bg-sky-100 active:bg-sky-200 transition-colors duration-300">
+                                <img :src="product.image" :alt="product.name" class="w-full h-auto rounded">
+                                <b class="text-slate-800 font-semibold block truncate text-left">{{ product.name }}</b>
+                                <span class="text-slate-600 text-xs font-medium block text-left">
+                                    {{ product.price }}</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </template>
             <div v-else class="h-full w-full p-5 grid place-items-center">

@@ -1,3 +1,9 @@
+export type TProduct = {
+  image: string
+  name: string
+  price: number
+}
+
 export type TResponseChatRoom = {
   id: number
   is_calling: boolean
@@ -18,6 +24,19 @@ export type TResponseChatRoom = {
   user_avatar_url: string
   user_id: string
   image: string
+  product?: Omit<TProduct, 'image'>
+}
+
+type TChat = {
+  meta: TResponseChatRoom
+  lastSeen: string
+  data: {
+    id: number
+    chat: string
+    time: string
+    byCustomer: boolean
+    product?: { price: number; name: string }
+  }[]
 }
 
 type TEmoji = {

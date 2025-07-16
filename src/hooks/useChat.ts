@@ -5,14 +5,8 @@ import { checkImage, convertBlob, getImage } from '@/utils/image'
 import { formatHour12, formatTime, getDayDifference } from '@/utils/time'
 import { clickById, moveItem } from '@/utils/general'
 import rooms from '@/json/list_rooms.json'
-import type { TEmoji, TResponseChatRoom } from '@/types'
+import type { TChat, TEmoji, TProduct, TResponseChatRoom } from '@/types'
 import Input from '@/components/common/Input.vue'
-
-type TChat = {
-  meta: TResponseChatRoom
-  lastSeen: string
-  data: { id: number; chat: string; time: string; byCustomer: boolean }[]
-}
 
 const room_key = 'list_rooms'
 const chat_key = 'list_chats'
@@ -49,6 +43,7 @@ export default function useChat() {
   const message = ref<InstanceType<typeof Input> | null>(null)
   const chats = ref<HTMLDivElement | null>(null)
   const chatrooms = ref<HTMLDivElement | null>(null)
+  const imageData = ref<string | null>(null)
 
   const loadChatsFromStorage = () => {
     const stored = localStorage.getItem(chat_key)
@@ -122,8 +117,7 @@ export default function useChat() {
     await initChat(true)
   }
 
-  const updateChat = (chat: string, callback?: () => void) => {
-    console.log(chat)
+  const updateChat = (chat: string, product?: Omit<TProduct, 'image'>, callback?: () => void) => {
     const now = new Date().toISOString()
 
     state.currentChat?.data.push({
@@ -131,6 +125,7 @@ export default function useChat() {
       chat,
       time: getFormattedTime(now).time,
       byCustomer: false,
+      product,
     })
 
     const idx = state.cleanRooms.findIndex((r) => r.room_id === id.value)
@@ -154,7 +149,7 @@ export default function useChat() {
     const msg = message.value?.getElement()
     if (!msg?.value) return
 
-    updateChat(msg.value, () => (msg.value = ''))
+    updateChat(msg.value, undefined, () => (msg.value = ''))
   }
 
   const onSelectEmoji = (emoji: TEmoji) => {
@@ -167,14 +162,18 @@ export default function useChat() {
     msg.focus()
   }
 
-  const imageData = ref<string | null>(null)
-
   const uploadImage = async (event: Event) => {
+    clickById('upload')
     const target = event.target as HTMLInputElement
     if (!target.files || target.files.length === 0) return
 
     imageData.value = await convertBlob(target.files[0])
     updateChat('[file] ' + imageData.value + ' [/file]')
+  }
+
+  const uploadProduct = (item: TProduct) => {
+    const { image, ...product } = item
+    updateChat('[file] ' + image + ' [/file]', product, () => clickById('products'))
   }
 
   watch(id, () => initChat())
@@ -199,6 +198,7 @@ export default function useChat() {
     clickById,
     sendMessage,
     uploadImage,
+    uploadProduct,
     onSelectEmoji,
     getLastChat,
   }
