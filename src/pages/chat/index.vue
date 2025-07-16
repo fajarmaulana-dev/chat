@@ -1,170 +1,23 @@
 <script setup lang="ts">
-import { ArrowLeft, ChatLines, DoubleCheck, Emoji, MediaImage, MenuScale, Plus, Search, Send, User } from '@iconoir/vue';
-import { checkImage, getImage } from '@/utils/image';
+import { ArrowLeft, ChatLines, DoubleCheck, Emoji, MediaImage, MenuScale, Plus, Search, Send, Shop, User } from '@iconoir/vue';
 import Input from '@/components/common/Input.vue';
-import rooms from '@/json/list_rooms.json'
-import { useRoute } from 'vue-router';
-import { formatHour12, formatTime, getDayDifference } from '@/utils/time';
-import { computed, ref } from '@vue/reactivity';
-import { nextTick, onMounted, watch } from '@vue/runtime-core';
-import type { TEmoji, TResponseChatRoom } from '@/types';
-import { clickById, moveItem } from '@/utils/general';
 import EmojiPicker from 'vue3-emoji-picker'
+import { useChat } from '@/hooks';
 
-type TChat = {
-    meta: TResponseChatRoom,
-    lastSeen: string,
-    data: { id: number, chat: string, time: string, byCustomer: boolean }[]
-}
-
-const route = useRoute()
-const cleanRooms = ref<TResponseChatRoom[]>([])
-const currentChat = ref<TChat | null>(null)
-const allChatRooms = ref<TChat[]>([])
-const message = ref<InstanceType<typeof Input> | null>(null)
-const id = computed(() => route.query.id)
-const chats = ref<HTMLDivElement | null>(null)
-const chatrooms = ref<HTMLDivElement | null>(null)
-const room_key = 'list_rooms'
-const chat_key = 'list_chats'
-
-const getFormatedTime = (time: string) => {
-    let formatedTime = formatTime(time, { day: 'numeric', month: 'numeric', year: 'numeric' })
-    const dayFromNow = getDayDifference(time)
-    if (dayFromNow === 0) formatedTime = formatHour12(time)
-    if (dayFromNow === 1) formatedTime = 'Kemarin'
-    if (dayFromNow > 1 && dayFromNow <= 7) formatedTime = formatTime(time, { weekday: 'long' })
-    return {
-        time: formatedTime,
-        dayDiff: dayFromNow
-    }
-}
-
-const lastChatIdentifier = (room: TResponseChatRoom) => {
-    const byCustomer = !!room.last_customer_comment_text && (room.last_customer_timestamp >= room.last_comment_timestamp)
-    const chat = byCustomer ? room.last_customer_comment_text! : room.last_comment_text!
-    let time = byCustomer ? room.last_customer_timestamp : room.last_comment_timestamp
-    time = getFormatedTime(time).time
-    return { byCustomer, chat, time }
-}
-
-const initChat = async (scrollToId = false) => {
-    if (!route.query.id) return
-    const chatData = localStorage.getItem(chat_key)
-    allChatRooms.value = chatData ? JSON.parse(chatData) : []
-    if (allChatRooms.value.length === 0) {
-        allChatRooms.value = cleanRooms.value.map(room => {
-            const chatNumber = +room.room_id.slice(-2)
-            const lastDate = new Date(room.last_comment_timestamp)
-            const dummyChat = [...new Array(chatNumber)].map((_, idx) => {
-                const date = new Date(lastDate.getTime() - (chatNumber - idx + 1) * 60 * 1000);
-                return {
-                    id: idx + 1,
-                    chat: 'Lorem ipsum dolor sit amet consectetur adipisicing elit. Repellendus numquam architecto veritatis autem nihil in odio at perferendis velit dolorum!',
-                    time: getFormatedTime(date.toDateString()).time,
-                    byCustomer: idx % 2 === 0
-                }
-            })
-
-            const { chat, time, byCustomer } = lastChatIdentifier(room!)
-
-            const lastSeen = getFormatedTime(room.last_customer_timestamp)
-            let lastSeenLabel = 'Terakhir terlihat '
-            if (lastSeen.dayDiff === 0) lastSeenLabel = lastSeenLabel + 'hari ini pukul '
-            if (lastSeen.dayDiff > 7) lastSeenLabel = lastSeenLabel + 'pada '
-            return {
-                meta: room,
-                lastSeen: lastSeenLabel + lastSeen.time,
-                data: [...dummyChat, { id: room.id, chat, time, byCustomer }]
-            } as TChat
-        })
-        localStorage.setItem(chat_key, JSON.stringify(allChatRooms.value))
-    }
-
-    const selectedRoom = allChatRooms.value.find(room => room.meta.room_id === route.query.id!)
-    if (!selectedRoom) return
-    currentChat.value = { ...selectedRoom }
-
-    await nextTick();
-    if (scrollToId) {
-        const el = document.getElementById(selectedRoom.meta.room_id);
-        if (el) {
-            el.scrollIntoView({ block: 'nearest' });
-        }
-    }
-}
-
-const initRoom = async () => {
-    const roomData = localStorage.getItem(room_key)
-    if (roomData) {
-        cleanRooms.value = JSON.parse(roomData)
-        initChat(true)
-        return
-    }
-
-    for (const room of rooms.data.customer_rooms) {
-        const image = await checkImage(room.user_avatar_url)
-        cleanRooms.value.push({ ...room, image })
-    }
-    localStorage.setItem(room_key, JSON.stringify(cleanRooms.value))
-    initChat(true)
-}
-
-const onSelectEmoji = (emoji: TEmoji) => {
-    const msg = message.value?.getElement();
-    if (!msg) return;
-
-    const start = msg.selectionStart ?? 0;
-    const end = msg.selectionEnd ?? 0;
-    const text = msg.value;
-
-    const newText = text.slice(0, start) + emoji.i + text.slice(end);
-    msg.value = newText;
-    const cursorPos = start + emoji.i.length;
-    msg.setSelectionRange(cursorPos, cursorPos);
-    msg.focus();
-}
-
-
-const sendMessage = () => {
-    const msg = message.value?.getElement()
-    if (!msg.value) return
-    const currentDate = new Date().toISOString()
-    currentChat.value?.data.push({
-        id: currentChat.value?.data.length + 1,
-        chat: msg.value,
-        time: getFormatedTime(currentDate).time,
-        byCustomer: false
-    })
-
-    const roomIndex = cleanRooms.value.findIndex(room => room.room_id === route.query.id!)
-    cleanRooms.value[roomIndex].last_comment_text = msg.value
-    cleanRooms.value[roomIndex].last_comment_timestamp = currentDate
-    allChatRooms.value[roomIndex] = currentChat.value!
-
-    msg.value = ''
-    moveItem(cleanRooms.value, roomIndex, 0)
-    moveItem(allChatRooms.value, roomIndex, 0)
-
-    console.log(currentChat.value)
-
-    localStorage.setItem(room_key, JSON.stringify(cleanRooms.value))
-    localStorage.setItem(chat_key, JSON.stringify(allChatRooms.value))
-
-    if (chatrooms.value) {
-        chatrooms.value.scrollTop = 0;
-    }
-}
-
-watch(id, () => { initChat() })
-watch(currentChat, async () => {
-    await nextTick();
-    if (chats.value) {
-        chats.value.scrollTop = chats.value.scrollHeight;
-    }
-}, { deep: true })
-
-onMounted(async () => { await initRoom() })
+const {
+    cleanRooms,
+    currentChat,
+    message,
+    chats,
+    chatrooms,
+    id,
+    getImage,
+    clickById,
+    sendMessage,
+    uploadImage,
+    onSelectEmoji,
+    getLastChat,
+} = useChat()
 </script>
 
 <template>
@@ -215,15 +68,15 @@ onMounted(async () => { await initRoom() })
                             <div class="flex gap-2 justify-between items-center">
                                 <b class="text-slate-800 font-semibold block truncate">{{ room.name }}</b>
                                 <span class="text-slate-400 text-xs font-medium">
-                                    {{ lastChatIdentifier(room).time }}</span>
+                                    {{ getLastChat(room).time }}</span>
                             </div>
                             <div class="text-sm text-slate-500 flex items-center gap-1">
-                                <DoubleCheck v-if="!lastChatIdentifier(room).byCustomer" height="14"
+                                <DoubleCheck v-if="!getLastChat(room).byCustomer" height="14"
                                     class="text-sky-600 max-w-3.5 min-w-3.5" />
-                                <MediaImage v-if="lastChatIdentifier(room).chat.startsWith('[file]')" height="14"
+                                <MediaImage v-if="getLastChat(room).chat.startsWith('[file]')" height="14"
                                     class="text-slate-500 max-w-3.5 min-w-3.5" />
-                                <p class="truncate">{{ lastChatIdentifier(room).chat.startsWith('[file]') ? 'Foto' :
-                                    lastChatIdentifier(room).chat }}</p>
+                                <p class="truncate">{{ getLastChat(room).chat.startsWith('[file]') ? 'Foto' :
+                                    getLastChat(room).chat }}</p>
                             </div>
                         </div>
                     </router-link>
@@ -286,11 +139,12 @@ onMounted(async () => { await initRoom() })
                 </div>
                 <div :class="{ 'fixed md:absolute': !!id }"
                     class="w-full bg-white py-4 px-5 border-t border-neutral-200/80 h-20 inset-x-0 bottom-0 flex items-center gap-2">
-                    <label for="emoji"
+                    <label for="emoji" aria-label="emoji"
                         class="fixed inset-0 peer select-none pointer-events-none has-[:checked]:pointer-events-auto">
                         <input type="checkbox" name="emoji" id="emoji" class="hidden">
                     </label>
-                    <EmojiPicker native class="absolute left-0 bottom-16 scale-0 peer-has-[:checked]:scale-100"
+                    <EmojiPicker native
+                        class="absolute left-0 bottom-16 scale-0 peer-has-[:checked]:scale-100 transition-transform duration-300"
                         @select="onSelectEmoji" />
                     <Input with-prefix ref="message" type="text" wrapper-class="min-h-12" prefix-class="ml-1 group"
                         placeholder="Ketik pesan ..." @keyup.enter="sendMessage" @prefix="() => clickById('emoji')">
@@ -299,11 +153,24 @@ onMounted(async () => { await initRoom() })
                             class="text-slate-400 group-hover:text-sky-600 group-active:text-sky-700 transition-colors duration-300" />
                     </template>
                     </Input>
-                    <button aria-label="show-product"
-                        class="border-2 border-neutral-200 hover:border-sky-600 active:border-sky-700 transition-colors duration-300 grid place-items-center min-w-12 max-w-12 h-12 rounded-full group">
+                    <div
+                        class="peer cursor-pointer border-2 border-neutral-300 hover:border-sky-600 transition-colors duration-300 grid place-items-center min-w-12 max-w-12 h-12 rounded-full group">
                         <Plus width="28" height="28"
-                            class="text-neutral-200 group-hover:text-sky-600 group-active:text-sky-700 transition-colors duration-300" />
-                    </button>
+                            class="text-neutral-300 group-hover:text-sky-600 group-active:text-sky-700 transition-colors duration-300" />
+                    </div>
+                    <div
+                        class="flex flex-col gap-2 absolute bottom-16 right-[76px] [&>*]:scale-0 peer-hover:[&>*]:scale-100 [&>*]:hover:scale-100 pb-3">
+                        <label aria-label="choose-image" for="choose-image"
+                            class="cursor-pointer w-12 h-12 rounded-full grid place-items-center bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 transition duration-300">
+                            <input type="file" id="choose-image" name="choose-image" accept="image/*" class="hidden"
+                                @click="({ target }: any) => target.value = null" @change="uploadImage">
+                            <MediaImage width="24" height="24" class="text-white" />
+                        </label>
+                        <button aria-label="choose-product"
+                            class="w-12 h-12 rounded-full grid place-items-center bg-violet-500 hover:bg-violet-600 active:bg-violet-700 transition duration-300">
+                            <Shop width="24" height="24" class="text-white" />
+                        </button>
+                    </div>
                     <button aria-label="send-message" @click="sendMessage"
                         class="bg-sky-600 hover:bg-sky-700 active:bg-sky-800 transition-colors duration-300 grid place-items-center min-w-12 max-w-12 h-12 rounded-full">
                         <Send width="24" height="24" class="text-white" />
